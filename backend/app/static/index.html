@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepoLens - Repository Analysis</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-analyze {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-analyze:hover {
+            background-color: #2980b9;
+        }
+        .btn-report {
+            background-color: #27ae60;
+            color: white;
+        }
+        .btn-report:hover {
+            background-color: #229954;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .output-container {
+            margin-top: 20px;
+            display: none;
+        }
+        .output-container.visible {
+            display: block;
+        }
+        .output-tabs {
+            display: flex;
+            border-bottom: 2px solid #ecf0f1;
+            margin-bottom: 10px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            color: #7f8c8d;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-button.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px 0;
+        }
+        .tab-content.visible {
+            display: block;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .error {
+            background-color: #ffe0e0;
+            color: #c0392b;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            border-left: 4px solid #c0392b;
+        }
+        .success {
+            background-color: #e8f8f5;
+            color: #27ae60;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            border-left: 4px solid #27ae60;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .spinner {
+            border: 3px solid #ecf0f1;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="checkbox"] {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 RepoLens - Repository Analysis Tool</h1>
+    
+    <div class="container">
+        <h2>Analyze a File</h2>
+        <form id="analyzeForm">
+            <div class="form-group">
+                <label for="repoPath">Repository Path *</label>
+                <input type="text" id="repoPath" name="repoPath" placeholder="e.g., /path/to/repo" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="filePath">File Path *</label>
+                <input type="text" id="filePath" name="filePath" placeholder="e.g., src/main.py" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="lineStart">Line Start (optional)</label>
+                <input type="number" id="lineStart" name="lineStart" placeholder="e.g., 1" min="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="lineEnd">Line End (optional)</label>
+                <input type="number" id="lineEnd" name="lineEnd" placeholder="e.g., 50" min="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="question">Question (optional)</label>
+                <textarea id="question" name="question" placeholder="e.g., Is it safe to change this?" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="maxCommits">Max Commits to Analyze</label>
+                <input type="number" id="maxCommits" name="maxCommits" value="10" min="1" max="100">
+            </div>
+            
+            <div class="form-group checkbox-group">
+                <input type="checkbox" id="useLlm" name="useLlm">
+                <label for="useLlm" style="margin-bottom: 0;">Use LLM (if API key available)</label>
+            </div>
+            
+            <div class="buttons">
+                <button type="submit" class="btn-analyze">📊 Analyze</button>
+                <button type="button" class="btn-report" onclick="generateReport()">📝 Generate Report</button>
+            </div>
+        </form>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+    </div>
+    
+    <div class="output-container" id="outputContainer">
+        <div class="output-tabs">
+            <button class="tab-button active" onclick="switchTab('json')">JSON Response</button>
+            <button class="tab-button" onclick="switchTab('markdown')">Markdown</button>
+        </div>
+        
+        <div id="json" class="tab-content visible">
+            <pre id="jsonOutput"></pre>
+        </div>
+        
+        <div id="markdown" class="tab-content">
+            <pre id="markdownOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('analyzeForm');
+        const loading = document.getElementById('loading');
+        const outputContainer = document.getElementById('outputContainer');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await analyzeFile();
+        });
+
+        async function analyzeFile() {
+            const data = {
+                repo_path: document.getElementById('repoPath').value,
+                file_path: document.getElementById('filePath').value,
+                line_start: document.getElementById('lineStart').value ? parseInt(document.getElementById('lineStart').value) : null,
+                line_end: document.getElementById('lineEnd').value ? parseInt(document.getElementById('lineEnd').value) : null,
+                question: document.getElementById('question').value || null,
+                max_commits: parseInt(document.getElementById('maxCommits').value),
+                use_llm: document.getElementById('useLlm').checked
+            };
+
+            loading.style.display = 'block';
+            outputContainer.classList.remove('visible');
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showError(error.detail || 'Analysis failed');
+                    return;
+                }
+
+                const result = await response.json();
+                document.getElementById('jsonOutput').textContent = JSON.stringify(result, null, 2);
+                outputContainer.classList.add('visible');
+                switchTab('json');
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        async function generateReport() {
+            const data = {
+                repo_path: document.getElementById('repoPath').value,
+                file_path: document.getElementById('filePath').value,
+                line_start: document.getElementById('lineStart').value ? parseInt(document.getElementById('lineStart').value) : null,
+                line_end: document.getElementById('lineEnd').value ? parseInt(document.getElementById('lineEnd').value) : null,
+                question: document.getElementById('question').value || null,
+                max_commits: parseInt(document.getElementById('maxCommits').value),
+                use_llm: document.getElementById('useLlm').checked
+            };
+
+            loading.style.display = 'block';
+            outputContainer.classList.remove('visible');
+
+            try {
+                const response = await fetch('/report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    showError(error.detail || 'Report generation failed');
+                    return;
+                }
+
+                const result = await response.json();
+                document.getElementById('markdownOutput').textContent = result.markdown;
+                outputContainer.classList.add('visible');
+                switchTab('markdown');
+                showSuccess(`Report saved to: ${result.saved_to}`);
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('visible'));
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('visible');
+            event.target.classList.add('active');
+        }
+
+        function showError(message) {
+            const container = document.createElement('div');
+            container.className = 'error';
+            container.textContent = message;
+            const existing = document.querySelector('.error');
+            if (existing) existing.remove();
+            document.querySelector('.container').appendChild(container);
+        }
+
+        function showSuccess(message) {
+            const container = document.createElement('div');
+            container.className = 'success';
+            container.textContent = message;
+            const existing = document.querySelector('.success');
+            if (existing) existing.remove();
+            document.querySelector('.container').appendChild(container);
+        }
+    </script>
+</body>
+</html>
